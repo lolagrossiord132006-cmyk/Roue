@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Roue de la soirée</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Roue soirée">
+<meta name="theme-color" content="#F5F6F1">
+<style>
+  :root{
+    --bg:#F5F6F1; --card:#FFFFFF; --text:#2E3327; --text-dim:#8C9A7E;
+    --accent:#6E8360; --accent-dark:#4F6144; --accent2:#D97B5F; --line:#E4E7DE;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    background:var(--bg); color:var(--text); min-height:100vh;
+  }
+  .wrap{max-width:480px; margin:0 auto; padding:calc(24px + env(safe-area-inset-top)) 18px calc(60px + env(safe-area-inset-bottom));}
+  h1{font-size:22px; margin:0 0 4px; color:var(--accent-dark);}
+  .sub{color:var(--text-dim); font-size:13.5px; margin-bottom:20px;}
+
+  .field{margin-bottom:16px;}
+  .field label{font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-dim); margin-bottom:8px; display:block;}
+  input[type=number]{
+    width:100%; background:var(--card); border:1.5px solid var(--line); border-radius:12px;
+    padding:12px 14px; font-size:15px; color:var(--text); font-family:inherit;
+  }
+  .chip-row{display:flex; gap:8px; flex-wrap:wrap;}
+  .chip{
+    padding:9px 14px; border-radius:20px; font-size:13.5px; font-weight:600; background:var(--card);
+    border:1.5px solid var(--line); color:var(--text-dim); cursor:pointer;
+  }
+  .chip.active{background:var(--accent); border-color:var(--accent); color:white;}
+
+  .wheel-zone{position:relative; width:280px; height:280px; margin:24px auto;}
+  .pointer{
+    position:absolute; top:-6px; left:50%; transform:translateX(-50%); width:0; height:0;
+    border-left:14px solid transparent; border-right:14px solid transparent; border-top:22px solid var(--accent-dark);
+    z-index:2;
+  }
+  canvas{width:280px; height:280px; border-radius:50%; box-shadow:0 4px 20px rgba(46,51,39,0.15);}
+  #wheelCanvas{transition:transform 4s cubic-bezier(0.15,0.85,0.25,1);}
+
+  .spin-btn{
+    width:100%; background:var(--accent-dark); color:white; border:none; padding:15px; border-radius:14px;
+    font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; margin-top:8px;
+  }
+  .spin-btn:disabled{opacity:.5;}
+
+  .result{
+    display:none; text-align:center; background:var(--card); border:1.5px solid var(--accent);
+    border-radius:18px; padding:22px; margin-top:20px;
+  }
+  .result.show{display:block; animation:popIn .3s ease both;}
+  @keyframes popIn{from{opacity:0; transform:translateY(8px) scale(.97);} to{opacity:1; transform:none;}}
+  .result .name{font-size:19px; font-weight:700; color:var(--accent-dark); margin-bottom:6px;}
+  .result .meta{font-size:13px; color:var(--text-dim);}
+
+  .empty{text-align:center; color:var(--text-dim); padding:20px; font-size:13.5px;}
+
+  .toggle-btns{display:flex; gap:8px; margin-bottom:16px;}
+  .toggle-btn{
+    flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
+    background:var(--card); border:1.5px dashed var(--line); border-radius:14px; padding:12px;
+    font-size:13.5px; font-weight:600; color:var(--accent-dark); cursor:pointer; font-family:inherit;
+  }
+
+  .add-form{
+    display:none; background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:16px; margin-bottom:16px;
+  }
+  .add-form.show{display:block;}
+  .add-form .form-title{font-size:14px; font-weight:700; color:var(--accent-dark); margin-bottom:12px;}
+  .add-form input[type=text], .add-form input[type=number], .add-form select{
+    width:100%; background:#FAFAF7; border:1.5px solid var(--line); border-radius:10px;
+    padding:10px 12px; font-size:14px; color:var(--text); font-family:inherit; margin-bottom:10px;
+  }
+  .add-form .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .add-save-btn{
+    width:100%; background:var(--accent); color:white; border:none; padding:12px; border-radius:12px;
+    font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; margin-bottom:8px;
+  }
+  .add-cancel-btn{
+    width:100%; background:transparent; color:var(--text-dim); border:none; padding:6px;
+    font-size:13px; cursor:pointer; font-family:inherit;
+  }
+
+  .films-list{margin-bottom:16px; display:none;}
+  .films-list.show{display:block;}
+  .film-row{
+    display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--line);
+    border-radius:12px; padding:10px 14px; margin-bottom:8px; font-size:13px;
+  }
+  .film-row .info{flex:1; min-width:0;}
+  .film-row .nom{font-weight:600; font-size:13.5px;}
+  .film-row .meta{color:var(--text-dim); font-size:11.5px; margin-top:2px;}
+  .film-row .actions{display:flex; gap:10px; flex-shrink:0;}
+  .film-row .edit{color:var(--accent-dark); cursor:pointer; font-weight:600; font-size:12.5px;}
+  .film-row .del{color:var(--accent2); cursor:pointer; font-weight:600; font-size:12.5px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎬 La roue de la soirée</h1>
+  <div class="sub">Filtre, lance la roue, laisse-toi surprendre</div>
+
+  <div class="field">
+    <label>Temps disponible (minutes)</label>
+    <input type="number" id="temps" value="150" min="10" max="300">
+  </div>
+
+  <div class="field">
+    <label>Ambiance</label>
+    <div class="chip-row" id="ambianceRow">
+      <div class="chip active" data-val="">Peu importe</div>
+      <div class="chip" data-val="leger">Léger</div>
+      <div class="chip" data-val="intense">Intense</div>
+      <div class="chip" data-val="drole">Drôle</div>
+      <div class="chip" data-val="emouvant">Émouvant</div>
+    </div>
+  </div>
+
+  <div class="toggle-btns">
+    <div class="toggle-btn" onclick="ouvrirAjout()">+ Ajouter</div>
+    <div class="toggle-btn" id="listToggle" onclick="toggleFilmsList()">Gérer la liste</div>
+  </div>
+
+  <div class="add-form" id="addForm">
+    <div class="form-title" id="formTitle">Ajouter un film / une série</div>
+    <input type="text" id="newNom" placeholder="Titre">
+    <div class="row2">
+      <select id="newType">
+        <option value="Film">Film</option>
+        <option value="Serie">Série</option>
+      </select>
+      <input type="number" id="newDuree" placeholder="Durée (min)">
+    </div>
+    <div class="row2">
+      <select id="newAmbiance">
+        <option value="leger">Léger</option>
+        <option value="intense">Intense</option>
+        <option value="drole">Drôle</option>
+        <option value="emouvant">Émouvant</option>
+      </select>
+      <input type="number" id="newNote" placeholder="Note (1-5)" min="1" max="5">
+    </div>
+    <button class="add-save-btn" id="addSaveBtn" onclick="enregistrerFilm()">Ajouter</button>
+    <button class="add-cancel-btn" onclick="fermerFormulaire()">Annuler</button>
+  </div>
+
+  <div class="films-list" id="filmsList"></div>
+
+  <div class="wheel-zone">
+    <div class="pointer"></div>
+    <canvas id="wheelCanvas" width="280" height="280"></canvas>
+  </div>
+
+  <button class="spin-btn" id="spinBtn" onclick="lancerRoue()">Lancer la roue</button>
+
+  <div class="result" id="result">
+    <div class="name" id="resultName"></div>
+    <div class="meta" id="resultMeta"></div>
+  </div>
+</div>
+
+<script>
+const LISTE_DEFAUT = [
+  {"nom": "The Mentalist", "type": "Serie", "duree": 42, "ambiance": "intense", "note": 4},
+  {"nom": "Gilmore Girls", "type": "Serie", "duree": 44, "ambiance": "leger", "note": 3},
+  {"nom": "Footloose (2011)", "type": "Film", "duree": 113, "ambiance": "leger", "note": 5},
+  {"nom": "Suits, avocats sur mesure", "type": "Serie", "duree": 45, "ambiance": "intense", "note": 4},
+  {"nom": "Ma vie avec les Walter Boys", "type": "Serie", "duree": 45, "ambiance": "emouvant", "note": 4},
+  {"nom": "Mr et Mrs Smith", "type": "Film", "duree": 120, "ambiance": "drole", "note": 5},
+  {"nom": "Voyage au centre de la Terre", "type": "Film", "duree": 93, "ambiance": "leger", "note": 4},
+  {"nom": "Voyage au centre de la Terre : L'Île mystérieuse", "type": "Film", "duree": 94, "ambiance": "leger", "note": 5},
+  {"nom": "27 robes", "type": "Film", "duree": 107, "ambiance": "drole", "note": 4},
+  {"nom": "Enola Holmes", "type": "Film", "duree": 123, "ambiance": "leger", "note": 4},
+  {"nom": "Enola Holmes 2", "type": "Film", "duree": 129, "ambiance": "leger", "note": 4},
+  {"nom": "Enola Holmes 3", "type": "Film", "duree": 120, "ambiance": "leger", "note": 4},
+  {"nom": "Jurassic Park", "type": "Film", "duree": 127, "ambiance": "intense", "note": 4},
+  {"nom": "Jurassic Park : Le Monde perdu", "type": "Film", "duree": 129, "ambiance": "intense", "note": 4},
+  {"nom": "Jurassic Park 3", "type": "Film", "duree": 92, "ambiance": "intense", "note": 4},
+  {"nom": "Jurassic World", "type": "Film", "duree": 124, "ambiance": "intense", "note": 4},
+  {"nom": "Jurassic World : Fallen Kingdom", "type": "Film", "duree": 128, "ambiance": "intense", "note": 4},
+  {"nom": "Jurassic World Dominion", "type": "Film", "duree": 147, "ambiance": "intense", "note": 4},
+  {"nom": "Fairy Tail", "type": "Serie", "duree": 24, "ambiance": "drole", "note": 4}
+];
+
+const FILMS_KEY = "roue_soiree_films";
+const HISTORIQUE_KEY = "roue_soiree_historique";
+const NB_A_EVITER = 3;
+const COULEURS = ["#6E8360","#D97B5F","#C9A227","#5C7A8A","#8C5B7A","#7A8450","#4F6144","#B4482F"];
+
+let ambianceChoisie = "";
+let rotationActuelle = 0;
+let enCours = false;
+let editingId = null;
+
+function genId(){
+  return 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+}
+
+function getListe(){
+  let stored = null;
+  try{ stored = JSON.parse(localStorage.getItem(FILMS_KEY)); }catch(e){}
+  if(!stored || stored.length === 0){
+    stored = LISTE_DEFAUT.map(item => Object.assign({ id: genId() }, item));
+    localStorage.setItem(FILMS_KEY, JSON.stringify(stored));
+  }
+  return stored;
+}
+function saveListe(items){
+  localStorage.setItem(FILMS_KEY, JSON.stringify(items));
+}
+
+function getHistorique(){
+  try{ return JSON.parse(localStorage.getItem(HISTORIQUE_KEY)) || []; }catch(e){ return []; }
+}
+function ajouterHistorique(nom){
+  let h = getHistorique();
+  h.push(nom);
+  h = h.slice(-NB_A_EVITER);
+  localStorage.setItem(HISTORIQUE_KEY, JSON.stringify(h));
+}
+
+function getCandidats(temps, ambiance, avecHistorique){
+  const historique = getHistorique();
+  return getListe().filter(item => {
+    if(item.duree > temps) return false;
+    if(ambiance && item.ambiance !== ambiance) return false;
+    if(avecHistorique && historique.includes(item.nom)) return false;
+    return true;
+  });
+}
+
+document.querySelectorAll('#ambianceRow .chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('#ambianceRow .chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    ambianceChoisie = chip.dataset.val;
+  });
+});
+
+function resetForm(){
+  document.getElementById('newNom').value = '';
+  document.getElementById('newType').value = 'Film';
+  document.getElementById('newDuree').value = '';
+  document.getElementById('newAmbiance').value = 'leger';
+  document.getElementById('newNote').value = '';
+}
+
+function ouvrirAjout(){
+  editingId = null;
+  resetForm();
+  document.getElementById('formTitle').textContent = 'Ajouter un film / une série';
+  document.getElementById('addSaveBtn').textContent = 'Ajouter';
+  document.getElementById('addForm').classList.add('show');
+  document.getElementById('addForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function fermerFormulaire(){
+  editingId = null;
+  document.getElementById('addForm').classList.remove('show');
+}
+
+function modifierFilm(id){
+  const item = getListe().find(i => i.id === id);
+  if(!item) return;
+  editingId = id;
+  document.getElementById('newNom').value = item.nom;
+  document.getElementById('newType').value = item.type;
+  document.getElementById('newDuree').value = item.duree;
+  document.getElementById('newAmbiance').value = item.ambiance;
+  document.getElementById('newNote').value = item.note;
+  document.getElementById('formTitle').textContent = 'Modifier ce film / cette série';
+  document.getElementById('addSaveBtn').textContent = 'Enregistrer les modifications';
+  document.getElementById('addForm').classList.add('show');
+  document.getElementById('addForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function enregistrerFilm(){
+  const nom = document.getElementById('newNom').value.trim();
+  const type = document.getElementById('newType').value;
+  const duree = parseInt(document.getElementById('newDuree').value);
+  const ambiance = document.getElementById('newAmbiance').value;
+  const note = parseInt(document.getElementById('newNote').value);
+
+  if(!nom){ alert("Donne un nom au film ou à la série."); return; }
+  if(!duree || duree <= 0){ alert("Donne une durée valide en minutes."); return; }
+  if(!note || note < 1 || note > 5){ alert("La note doit être entre 1 et 5."); return; }
+
+  let items = getListe();
+  if(editingId){
+    items = items.map(i => i.id === editingId ? { id: editingId, nom, type, duree, ambiance, note } : i);
+  } else {
+    items.push({ id: genId(), nom, type, duree, ambiance, note });
+  }
+  saveListe(items);
+
+  editingId = null;
+  resetForm();
+  document.getElementById('addForm').classList.remove('show');
+
+  renderFilmsList();
+  dessinerRoue(getCandidats(parseInt(document.getElementById('temps').value) || 999, ambianceChoisie, false));
+}
+
+function supprimerFilm(id){
+  if(!confirm('Supprimer ce film/série de la liste ?')) return;
+  const items = getListe().filter(i => i.id !== id);
+  saveListe(items);
+  renderFilmsList();
+  dessinerRoue(getCandidats(parseInt(document.getElementById('temps').value) || 999, ambianceChoisie, false));
+}
+
+function toggleFilmsList(){
+  const el = document.getElementById('filmsList');
+  el.classList.toggle('show');
+  if(el.classList.contains('show')) renderFilmsList();
+}
+
+const AMBIANCE_LABEL = { leger: 'Léger', intense: 'Intense', drole: 'Drôle', emouvant: 'Émouvant' };
+
+function renderFilmsList(){
+  const items = getListe();
+  const el = document.getElementById('filmsList');
+  if(items.length === 0){
+    el.innerHTML = '<div class="empty">Aucun film ou série pour l\'instant.</div>';
+    return;
+  }
+  el.innerHTML = items.map(item => `
+    <div class="film-row">
+      <div class="info">
+        <div class="nom">${item.nom}</div>
+        <div class="meta">${item.type} · ${item.duree} min · ${AMBIANCE_LABEL[item.ambiance] || item.ambiance} · ${item.note}/5</div>
+      </div>
+      <div class="actions">
+        <span class="edit" onclick="modifierFilm('${item.id}')">Modifier</span>
+        <span class="del" onclick="supprimerFilm('${item.id}')">Supprimer</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function dessinerRoue(candidats){
+  const canvas = document.getElementById('wheelCanvas');
+  const ctx = canvas.getContext('2d');
+  const cx = 140, cy = 140, r = 138;
+  ctx.clearRect(0, 0, 280, 280);
+
+  const totalPoids = candidats.reduce((s, c) => s + c.note, 0);
+  let angleDepart = -Math.PI / 2;
+
+  candidats.forEach((item, i) => {
+    const angleTaille = (item.note / totalPoids) * 2 * Math.PI;
+    const angleFin = angleDepart + angleTaille;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, angleDepart, angleFin);
+    ctx.closePath();
+    ctx.fillStyle = COULEURS[i % COULEURS.length];
+    ctx.fill();
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angleDepart + angleTaille / 2);
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#fff";
+    ctx.font = "600 11px -apple-system, sans-serif";
+    const label = item.nom.length > 22 ? item.nom.slice(0, 20) + "…" : item.nom;
+    ctx.fillText(label, r - 10, 4);
+    ctx.restore();
+
+    angleDepart = angleFin;
+  });
+}
+
+function tirageParPoids(candidats){
+  const totalPoids = candidats.reduce((s, c) => s + c.note, 0);
+  let r = Math.random() * totalPoids;
+  for(let i = 0; i < candidats.length; i++){
+    r -= candidats[i].note;
+    if(r <= 0) return i;
+  }
+  return candidats.length - 1;
+}
+
+function lancerRoue(){
+  if(enCours) return;
+  const temps = parseInt(document.getElementById('temps').value) || 0;
+
+  let candidats = getCandidats(temps, ambianceChoisie, true);
+  if(candidats.length === 0){
+    candidats = getCandidats(temps, ambianceChoisie, false);
+  }
+  if(candidats.length === 0){
+    document.getElementById('result').classList.add('show');
+    document.getElementById('resultName').textContent = "Rien ne correspond 😕";
+    document.getElementById('resultMeta').textContent = "Essaie avec plus de temps ou une autre ambiance.";
+    dessinerRoue([]);
+    return;
+  }
+
+  document.getElementById('result').classList.remove('show');
+  dessinerRoue(candidats);
+
+  const totalPoids = candidats.reduce((s, c) => s + c.note, 0);
+  const indexChoisi = tirageParPoids(candidats);
+
+  let poidsAvant = 0;
+  for(let i = 0; i < indexChoisi; i++) poidsAvant += candidats[i].note;
+  const midAngleDeg = ((poidsAvant + candidats[indexChoisi].note / 2) / totalPoids) * 360;
+
+  const tours = 5;
+  const rotationFinale = rotationActuelle + tours * 360 + (360 - midAngleDeg) - (rotationActuelle % 360);
+
+  enCours = true;
+  document.getElementById('spinBtn').disabled = true;
+  const canvas = document.getElementById('wheelCanvas');
+  canvas.style.transform = `rotate(${rotationFinale}deg)`;
+  rotationActuelle = rotationFinale;
+
+  setTimeout(() => {
+    const item = candidats[indexChoisi];
+    document.getElementById('resultName').textContent = item.nom;
+    document.getElementById('resultMeta').textContent =
+      `${item.type} · ${item.duree} min · ${AMBIANCE_LABEL[item.ambiance] || item.ambiance} · ${item.note}/5`;
+    document.getElementById('result').classList.add('show');
+    ajouterHistorique(item.nom);
+    enCours = false;
+    document.getElementById('spinBtn').disabled = false;
+  }, 4100);
+}
+
+dessinerRoue(getCandidats(parseInt(document.getElementById('temps').value), "", false));
+</script>
+</body>
+</html>
